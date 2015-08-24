@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>简单的贪吃蛇游戏</title>
+    <style>
+/*<jdists encoding="clean-css">*/
+.table_back {
+    width: 320px;
+    height: 320px;
+    border-bottom: 1px solid black;
+    border-right: 1px solid black;
+}
+.floor {
+    border-left: 1px solid black;
+    border-top: 1px solid black;
+    font-size: 1px;
+    line-height: 1px;
+}
+/*</jdists>*/
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+</body>
+<script>
+/*<jdists encoding="jfogs,uglify" type="reverse">*/
+/*--
+标题：简单的贪吃蛇
+设计：王集鹄
+博客：http://blog.csdn.net/zswang
+日期：2010年1月22日
+--*/
+function Snake(options) {
+    var self = this;
+    options = options || {};
+    this.colCount = options.colCount || 20;
+    this.rowCount = options.rowCount || 20;
+    this.parent = options.parent || document.body; // 容器
+    this.speed = options.speed || 200; // 移动间隔时间
+    this.initLength = options.initLength || 3; // 初始长度
+
+    this.button_replay = document.createElement("input");
+    this.button_replay.type = "button";
+    this.button_replay.value = "replay";
+    this.button_replay.onclick = function() {
+        self.replay();
+    };
+    this.parent.appendChild(this.button_replay);
+
+    this.table_back = document.createElement("table");
+    this.table_back.className = "table_back";
+    this.table_back.cellPadding = "0px";
+    this.table_back.cellSpacing = "0px";
+    this.playing = false; // 是否在进行中
+    this.floors = {}; // 矩阵地板矩阵 [y,x]
+    for (var i = 0; i < this.rowCount; i++) {
+        var tr = this.table_back.insertRow(-1);
+        for (var j = 0; j < this.colCount; j++) {
+            var td = tr.insertCell(-1);
+            td.className = "floor";
+            td.innerHTML = "&nbsp;";
+            this.floors[[i, j]] = {
+                td: td,
+                pos: [i, j]
+            };
+        }
+    }
+    this.parent.appendChild(this.table_back);
+
+    var documentKeydown = function(e) { // 处理按键
+        e = e || event;
+        var code = e.keyCode || e.which || e.charCode;
+        if (code < 37 || code > 40) return;
+        var direction = code - 37;
+        if (self.offsets[direction][0] == self.offsets[self.direction][0] &&
+            self.offsets[direction][1] == -self.offsets[self.direction][1]) return; // 不回头
+        if (self.offsets[direction][1] == self.offsets[self.direction][1] &&
+            self.offsets[direction][0] == -self.offsets[self.direction][0]) return; // 不回头
+        self.direction = direction;
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        e.cancelBubble = true;
+        e.returnValue = false;
+    };
+    if (document.addEventListener)
+        document.addEventListener("keydown", documentKeydown, true);
+    else if (document.attachEvent)
+        document.attachEvent("onkeydown", documentKeydown);
+
+    this.replay();
+}
+
+Snake.prototype = {
+    replay: function() { // 重新开始
+        var self = this;
+        this.direction = 0;
+        this.colorIndex = 0;
+        for (var i = 0; i < this.rowCount; i++)
+            for (var j = 0; j < this.colCount; j++) {
+                var floor = this.floors[[i, j]];
+                floor.color = "";
+                floor.type = "space";
+                this.changeFloor(floor);
+            }
+        this.bodys = []; // 身体
+        var center = [Math.floor(this.rowCount / 2), Math.floor(this.colCount / 2)]; // 中心位置
+        for (var i = 0; i < this.initLength; i++) {
+            this.bodys.push({
+                floor: this.floors[center],
+                color: this.colors[this.colorIndex]
+            });
+            this.colorIndex = (this.colorIndex + 1) % this.colors.length;
+        }
+        // 头部
+        this.bodys[0].color = "#000";
+        this.bodys[0].floor.color = this.bodys[0].color;
+        this.bodys[0].floor.type = "body";
+        this.changeFloor(this.bodys[0].floor);
+
+        this.randmoFool();
+        clearInterval(this.timer);
+        this.timer = setInterval(function() { self.move(); }, this.speed);
+    },
+    offsets: [[0, -1], [-1, 0], [0, +1], [+1, 0]], // 移动偏移
+    gameover: function() {
+        clearInterval(this.timer);
+        alert("game over");
+    },
+    move: function() {
+        var head = [ // 移动头部坐标
+            this.bodys[0].floor.pos[0] + this.offsets[this.direction][0],
+            this.bodys[0].floor.pos[1] + this.offsets[this.direction][1]
+        ];
+        if (!this.floors[head] ||
+            !/^(space|food)$/.test(this.floors[head].type)) { // 非食物和空地
+            this.gameover();
+            return;
+        }
+        var tail = this.bodys[this.bodys.length - 1].floor.pos; // 尾
+        if (this.floors[head].type == "food") { // 吃到食物
+            this.bodys.push({ color: this.floors[head].color });
+            this.randmoFool();
+        }
+        for (var i = this.bodys.length - 1; i > 0; i--) // 身体移动
+            this.bodys[i].floor = this.bodys[i - 1].floor;
+
+        this.bodys[0].floor = this.floors[head];
+        this.bodys[0].floor.color = this.bodys[0].color;
+        this.floors[tail].color = "";
+        this.floors[tail].type = "space";
+
+        this.changeFloor(this.floors[tail]); // 清除原尾部位置
+        for (var i = this.bodys.length - 1; i >= 0; i--) {
+            this.bodys[i].floor.color = this.bodys[i].color;
+            this.bodys[i].floor.type = "body";
+            this.changeFloor(this.bodys[i].floor);
+        }
+    },
+    colors: ["#f0f", "#c00", "#0c0", "#c00", "#880", "#808", "#088"], // 食物颜色
+    randmoFool: function() { // 随机投放食物
+        do {
+            var pos = [
+                Math.floor(Math.random() * this.rowCount),
+                Math.floor(Math.random() * this.colCount)
+            ];
+            var floor = this.floors[pos];
+        } while(floor.type != "space"); // 食物需要投放在空地上
+
+        floor.type = "food";
+        floor.color = this.colors[this.colorIndex];
+        this.colorIndex = (this.colorIndex + 1) % this.colors.length;
+        this.changeFloor(floor);
+    },
+    changeFloor: function(floor) {
+        if (floor.td.style.backgroundColor != floor.color)
+            floor.td.style.backgroundColor = floor.color;
+    }
+};
+new Snake({
+    parent: document.getElementById('container')
+});
+/*</jdists>*/
+</script>
+</html>

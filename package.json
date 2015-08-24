@@ -1,0 +1,11 @@
+{
+    "name": "snake",
+    "description": "贪吃蛇",
+    "private": true,
+    "scripts": {
+        "dist": "jdists src/snake.html -o dist/snake.html"
+    },
+    "dependencies": {
+        "jdists": "^1.0.5"
+    }
+}

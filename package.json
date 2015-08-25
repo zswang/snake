@@ -6,6 +6,6 @@
         "dist": "jdists src/snake.html -o dist/snake.html"
     },
     "dependencies": {
-        "jdists": "^1.0.5"
+        "jdists": "^1.0.7"
     }
 }
